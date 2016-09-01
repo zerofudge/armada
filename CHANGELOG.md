@@ -1,6 +1,352 @@
 # Changelog
 
-## 0.10.0
+## Unreleased
+
+### Improvements
+- [Vagrant](https://github.com/armadaplatform/vagrant "Armada Vagrant") Use `socat` instead of `armada-bind` to proxy insecure dockyard connection through localhost.
+
+### Bug fixes
+- Properly deregister crashed sub-services. 
+- Fixed a bug which caused `armada run` in development environment use 4999:80 port mapping, even if port 80 was explicitly overridden.
+
+
+## 1.3.3 (2016-08-25)
+
+We do best effort to support docker versions 1.6.0 - 1.12.0 with this release.
+
+### Bug fixes
+- Fixed armada service on `systemd` init system.
+
+## 1.3.2 (2016-08-23)
+
+We do best effort to support docker versions 1.6.0 - 1.12.0 with this release.
+
+### Bug fixes
+- Fixed critical bug with setting containers' config paths introduced in 1.3.0.
+
+
+## 1.3.1 (2016-08-19)
+
+### Bug fixes
+- Fixed critical bug with mounting containers' volumes introduced in 1.3.0.
+
+
+## 1.3.0 (2016-08-19)
+
+We do best effort to support docker versions 1.6.0 - 1.12.0 with this release.
+
+### Improvements
+- Optionally restrict possible config directories. By default root directory is mounted inside armada container in read-only mode, to verify existence of `--config` paths.
+This can be restricted by setting `RESTRICT_CUSTOM_CONFIG_DIRS` variable to a specific path. (e.g. /home/user/configs)
+
+- `run` and `restart` commands can get IP address as '--ship' argument.
+
+### Features
+- `armada list` show services that should be running with additional statuses:
+    - `recovering`
+    - `not-recovered` if recovering was not successful 
+    - `crashed` for not running containers
+    - `armada stop` to remove service from list
+
+    
+### Bug fixes
+- While default armada network interface is unavailable armada uses host default interface.
+- Fixed logging of Armada CLI commands
+
+## 1.2.2 (2016-08-04)
+
+We do best effort to support docker versions 1.6.0 - 1.12.0 with this release.
+
+### Bug fixes
+- Fix `armada list` always assuming `-l/--local` flag.
+- Revert old behavior in `armada list` that showed 'container_id' instead of 'microservice_id' in ID column.
+
+
+## 1.2.1 (2016-08-04)
+
+We do best effort to support docker versions 1.6.0 - 1.12.0 with this release.
+
+### Bug fixes
+- Fix filtering by `app_id` in `armada list`.
+- Fix pyflakes issues.
+- Fix installation of bash completion file.
+
+## 1.2.0 (2016-08-03)
+
+We do best effort to support docker versions 1.6.0 - 1.12.0 with this release.
+
+### Features
+- Added autocomplete of armada commands, dockyard aliases, services and ships names.
+
+### Improvements
+- 'armada list' command support wildcards *, ?.
+
+### Bug fixes
+- Remove HTTP_PROXY header.
+
+## 1.1.1 (2016-07-19)
+
+We do best effort to support docker versions 1.6.0 - 1.12.0 with this release.
+
+### Bug fixes
+- Fixed issue with unhandled exception during the installation process. 
+
+
+## 1.1.0 (2016-07-19)
+
+We do best effort to support docker versions 1.6.0 - 1.12.0 with this release.
+
+### Features
+- Added logging of Armada CLI
+- Added support for docker 1.12.*
+
+### Improvements
+- After critical status of service health checks next check is run after 1s,2s,3s... until 10s or first pass of health checks.
+- Enabled autoreload of Armada API in development Vagrant
+
+## 1.0.0 (2016-07-08)
+
+**Ahoy sailor!**  
+**:tada: :birthday: Armada is celebrating one year anniversary! :birthday: :tada:**  
+**Fair winds!**  
+:anchor:  
+
+
+
+We do best effort to support docker versions 1.6.0 - 1.10.3 with this release.
+
+### Features
+:balloon: Added indicator of current ship in 'armada info'.
+
+### Bug fixes
+:balloon: Fix log file permission error.  
+:balloon: Fix getting docker pid on centos7.  
+:balloon: Validate response from armada_api.get('version').  
+
+### Improvements
+:balloon: Install armada pip package (with hermes) in microservice_python* base images.
+
+
+## 0.20.2 (2016-07-04)
+
+We do best effort to support docker versions 1.6.0 - 1.10.3 with this release.
+
+### Bug fixes
+- Do not use local restart if --ship parameter is provided.
+- Fix issue with fallback to the default dockyard alias if the -d options is not provided.
+
+## 0.20.1 (2016-06-28)
+
+We do best effort to support docker versions 1.6.0 - 1.10.3 with this release.
+
+### Bug fixes
+- Fix displaying the information about the new version.
+
+
+## 0.20.0 (2016-06-28)
+
+We do best effort to support docker versions 1.6.0 - 1.10.3 with this release.
+
+### :warning: **UPGRADE WARNING** :warning:
+Due to internal changes in Armada, all Armada agents within the same cluster need to be upgraded, otherwise
+remote runs and restarts will not work, and `armada info` may contain incorrect names. Ships' names will have to be set once again using `armada name` command.
+
+### Features
+- Allow verbose output for `armada build` command.
+- Added images versioning. Since now it's possible to build, push and run services using `service_name:tag` notation or `:tag` notation if the `MICROSERVICE_NAME` env is provided.
+- Added warning about using outdated armada version. It can be disabled by adding the `check_updates=0` line to the `/etc/default/armada` config file.
+
+### Improvements
+- Upgrade Consul from version 0.6.3 to 0.6.4.
+- Store names of Armada ships in Consul's kv store. `armada name` does not restart Armada service anymore and is much
+faster.
+- After joining Armada agent to cluster, Armada will detect running Couriers there and fetch configuration from them.
+
+### Bug fixes
+- Fix build of `microservice_python3.5` base image.
+
+
+## 0.19.2 (2016-05-31)
+
+### Improvements
+- Retry after failure during stopping of Docker container.
+
+### Bug fixes
+- Fix bug with recovering multiple copies of the same service.
+- Fix detection of Docker daemon start time, which could cause unnecessary recovery.
+- Make sure python requests package is not updated in Armada service.
+- Fix race condition in require_service.py, causing not registering service in local magellan.
+
+
+## 0.19.1 (2016-05-25)
+
+### Improvements
+- Update haproxy in microservice image (used by local magellan), from 1.5 to 1.6.
+- Increase timeout to docker api from 7s to 11s.
+
+### Bug fixes
+- Hold version of python requests package to 2.9.1 in microservice image.
+- Fixed checking for newest local image of service on restart in vagrant development environment.
+- Fix import errors in couple of backend scripts.
+
+
+## 0.19.0 (2016-05-17)
+
+### Improvements
+- In vagrant for armada development (`Vagrantfile` in armada repository), the code used for armada CLI is now
+mounted from local workstation.
+- Moved armada installation script from [armada-website](https://github.com/armadaplatform/armada-website) repository to armada repository.
+- Added OpenRC support (Contributed by [ryneeverett](https://github.com/ryneeverett)).
+
+### Bug fixes
+- Fixed issue with passing arguments to `armada ssh`.
+
+## 0.18.0 (2016-05-09)
+
+### Features
+- Services can now be moved between ships in a cluster with `armada restart` command using `--ship` parameter.
+- E.g.: `armada restart myservice --ship 10.0.0.2`
+- If moved service contains mounted volumes or statically assigned ports, restart will fail unless `-f \ --force` flag is provided.
+- :warning: Use `--force` with caution. Mounted volumes **will not** be moved to another ship. Static ports collision will result in service being stopped, and **not restarted**.
+
+### Improvements
+- Nicified `armada restart` warning/error output.
+
+## 0.17.0 (2016-04-29)
+
+### :warning: **UPGRADE WARNING** :warning:
+Due to changes in armada internal API, all armada agents within the same cluster need to be upgraded, otherwise
+remote runs and restarts will not work.
+
+### Features
+- Local haproxy binds both on IPv4 and IPv6.
+- Default memory limit (both resident and swap) for services can now be customized per host. E.g. Add line
+`DEFAULT_CONTAINER_MEMORY_LIMIT=512M` to `/etc/default/armada` on host.
+
+### Improvements
+- Set 0.5s timeout for fetching armada agents' versions in `armada info`.
+- `$CONFIG_PATH` environment variable inside microservice (and mounted volumes for these configs) are now updated during
+`armada restart` to pick up the new config directories.
+
+## 0.16.1 (2016-04-04)
+
+### Bug fixes:
+- Fixed incorrect detection of dev environment during service recovery.
+
+## 0.16.0 (2016-03-25)
+
+### Features
+- `armada run` adds configs to `CONFIG_PATH` for the renamed microservice name in addition to image name.
+- Config directories provided with `armada run -c/--config` are additionally appended with combinations of `--env`
+and `--app_id` when generating `CONFIG_PATH`.
+
+### Bug fixes
+- Fix bug with not recovering services run before armada 0.15.0.
+
+## 0.15.0 (2016-03-22)
+
+### Features
+- Introduced resource limiting parameters to `armada run` command. These parameters accept same values as their respective docker parameters.
+    - --cpu-shares
+    - --memory
+    - --memory-swap
+    - --cgroup-parent
+
+
+### Improvements
+- `hermes` for python has been moved to `pypi` repository. It is available for download with `pip install armada` and can be imported with `from armada import hermes` command.
+- As a result built-in `hermes` has been marked as deprecated.
+- Suggest working workaround for accessing http dockyards in case they are running behind main-haproxy.
+
+## 0.14.1 (2016-03-07)
+
+### Bug fixes
+- Fixed detection of development environment.
+- Fix bug with pulling image without explicit tag.
+
+## 0.14.0 (2016-02-23)
+
+### Features
+- Support for [dockyard-v2](https://github.com/armadaplatform/dockyard-v2) (based on docker registry v2).
+- Support for HTTPS dockyards with self-signed certificates.
+- Detect not working remote HTTP dockyards and suggest workaround.
+- Added microservice_go base image.
+
+### Improvements
+- Upgrade Consul from version 0.6.0 to 0.6.3.
+- Run Consul using os.execv instead of spawning new process, which makes Consul's logs available in supervisor.
+- Store sorted container parameters in `/opt/armada/` on Ship, to make checking differences between versions easier.
+- Allow microservices' local haproxy to forward http connections with Host header.
+
+### Bug fixes
+- Passing `-d local` to `armada run` in Armada vagrant box does not break detection of development environment.
+- [Vagrant](https://github.com/armadaplatform/vagrant "Armada Vagrant") origin_dockyard_address parameter works properly with local dockyards by running localhost proxy.
+
+## 0.13.1 (2016-01-08)
+
+### Bug fixes
+- `armada ssh` invoked for remote services, that were rebuilt from microservice image v0.13.0 threw
+`KeyError - '22/tcp'`.
+
+## 0.13.0 (2015-12-30)
+
+### Features
+- Upgrade Consul from version 0.4.1 to 0.6.0.
+
+### Improvements
+- Don't expose port 22 and install openssh-server in microservice image anymore.
+- Increase timeouts to docker server, dockyards and local haproxy.
+- Remove hack for manual installing pip on Ubuntu.
+
+### :warning: **UPGRADE WARNING** :warning:
+
+Due to Consul upgrade, the promoted Armada agents (leaders and commanders) with version >= 0.13.0 cannot be mixed with
+older versions.
+There is a 15 minute window for upgrade. See more details:
+https://github.com/hashicorp/consul/commit/f53bd94dc334c56968ac4e33e19d9ca6a2b5aa22
+
+## 0.12.0 (2015-12-28)
+
+### Features
+- You can now pass options `-t/--tty` and `-i/--interactive` to `armada ssh`, which translate to corresponding
+`docker exec` options. Also the default behavior has been changed in case the command is provided. Both options,
+`-t` and `-i`, are turned off then.
+- New microservice template for `armada create` - python3 (based on [bottle](http://bottlepy.org/)).
+
+### Improvements
+- Added link to docker docs about configuring insecure registries when connection to such registry is attempted.
+(Contributed by [ryneeverett](https://github.com/ryneeverett))
+
+### Bug fixes
+- Fix bug with `armada ssh` always returning exit code 0.
+- Fix recovering services after Docker/host restart.
+
+## 0.11.1 (2015-12-17)
+
+### Improvements
+- Start local_magellan only when require_service is invoked.
+
+### Bug fixes
+- Fix hanging Armada on start, when using Docker version 1.9.1.
+- Use commands `python2` and `pip2` on Armada host in case the default python is 3.x.
+(Contributed by [ryneeverett](https://github.com/ryneeverett))
+- Fix detection of external Armada IP on some systems.
+(Contributed by [ryneeverett](https://github.com/ryneeverett))
+
+## 0.11.0 (2015-12-07)
+
+### Improvements
+- Increased size of health checks logs. (previously: 2 files up to 1MB each. now: 3 files up to 5MB each)
+- Revamped `armada ssh` command by moving `sshd` process from microservice image to Armada container.
+    - `docker exec` is now used to enter a container on the same host.
+    - In order to enter container on another host, ssh is used to connect to remote Armada container.
+    - **Containers created with new microservice image won't be accessible without updating Armada**
+
+### Features
+- Added microservice_python3.5 base image.
+
+
+## 0.10.0 (2015-11-12)
 
 ### Improvements
 - Default health-check (main-port-open) passes when main service's port is open on any interface, and not only 127.0.0.1. (Contributed by [zerofudge](https://github.com/zerofudge))
@@ -56,7 +402,7 @@ Containers will no longer spawn multiple zombie processes e.g. after armada ssh 
 ## 0.7.1 (2015-08-28)
 
 #### Improvements
-- Access Consul agent from Armada commands by localhost, instead of private Docker IP, as it sometimes causes hanging requests. 
+- Access Consul agent from Armada commands by localhost, instead of private Docker IP, as it sometimes causes hanging requests.
 
 
 ## 0.7.0 (2015-08-21)

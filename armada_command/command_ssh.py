@@ -1,12 +1,12 @@
 from __future__ import print_function
+
 import argparse
 import os
-import sys
-import json
-import subprocess
+import pipes
+import shlex
 
-import armada_api
 import armada_utils
+from armada_command.consul.consul import consul_query
 
 
 def parse_args():
@@ -20,7 +20,12 @@ def add_arguments(parser):
                         help='Name of the microservice or container_id to ssh into. '
                              'If not provided it will use MICROSERVICE_NAME env variable.')
     parser.add_argument('command', nargs=argparse.REMAINDER,
-                        help='Execute command inside the container.')
+                        help='Execute command inside the container. '
+                             'If not provided it will create interactive bash terminal.')
+    parser.add_argument('-t', '--tty', default=False, action='store_true',
+                        help='Allocate a pseudo-TTY.')
+    parser.add_argument('-i', '--interactive', default=False, action='store_true',
+                        help='Keep STDIN open even if not attached.')
 
 
 def command_ssh(args):
@@ -36,24 +41,43 @@ def command_ssh(args):
             'Provide more specific container_id or microservice name.'.format(**locals()))
     instance = instances[0]
 
+    if 'kv_index' in instance:
+        raise armada_utils.ArmadaCommandException('Cannot connect to not running service.')
+
     service_id = instance['ServiceID']
     container_id = service_id.split(':')[0]
     payload = {'container_id': container_id}
 
-    result = json.loads(armada_api.get('ssh-address', payload, ship_name=instance['Node']))
-
-    if result['status'] != 'ok':
-        raise armada_utils.ArmadaCommandException('armada API error: {0}'.format(result['error']))
-    ssh_host, ssh_port = result['ssh'].split(':')
-
-    print("Connecting to {0} at {1}:{2}...".format(instance['ServiceName'], ssh_host, ssh_port))
-
-    docker_key_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'keys/docker.key')
+    is_local = False
+    local_microservices_ids = set(consul_query('agent/services').keys())
+    if container_id in local_microservices_ids:
+        is_local = True
 
     if args.command:
-        command = 'sudo ' + ' '.join(args.command)
+        command = ' '.join(args.command)
     else:
-        command = 'sudo -i'
-    ssh_command = ('ssh -t -p {ssh_port} -i {docker_key_file} -o StrictHostKeyChecking=no docker@{ssh_host} '
-                   '"{command}"').format(**locals())
-    subprocess.call(ssh_command, shell=True)
+        command = 'bash'
+        args.tty = True
+        args.interactive = True
+
+    tty = '-t' if args.tty else ''
+    interactive = '-i' if args.interactive else ''
+    term = os.environ.get('TERM') or 'dummy'
+
+    command = pipes.quote(command)
+    docker_command = 'docker exec {interactive} {tty} {container_id} env TERM={term} ' \
+                     'sh -c {command}'.format(**locals())
+
+    if is_local:
+        print("Connecting to {0}...".format(instance['ServiceName']))
+        ssh_args = shlex.split(docker_command)
+    else:
+        ssh_host = instance['Address']
+        docker_key_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'keys/docker.key')
+        remote_ssh_chunk = 'ssh -t {tty} -p 2201 -i {docker_key_file} -o StrictHostKeyChecking=no docker@{ssh_host}' \
+            .format(**locals())
+        ssh_args = shlex.split(remote_ssh_chunk)
+        ssh_args.extend(('sudo', docker_command))
+        print("Connecting to {0} on host {1}...".format(instance['ServiceName'], ssh_host))
+
+    os.execvp(ssh_args[0], ssh_args)

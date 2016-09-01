@@ -1,13 +1,15 @@
 from __future__ import print_function
+
 import json
 import os
 import random
-import time
 import sys
-
-import consul
+import time
 
 import haproxy
+
+sys.path.append('/opt/microservice/src')
+import common.consul
 
 MICROSERVICE_ENV = os.environ.get('MICROSERVICE_ENV') or None
 MICROSERVICE_APP_ID = os.environ.get('MICROSERVICE_APP_ID') or None
@@ -19,8 +21,11 @@ def print_err(*objs):
 
 
 def save_magellan_config(magellan_config):
-    if not os.path.exists(LOCAL_MAGELLAN_CONFIG_DIR_PATH):
+    try:
         os.makedirs(LOCAL_MAGELLAN_CONFIG_DIR_PATH)
+    except OSError:
+        if not os.path.isdir(LOCAL_MAGELLAN_CONFIG_DIR_PATH):
+            raise
     port = list(magellan_config)[0]
     config_file_name = '{0}.json'.format(port)
     config_file_path = os.path.join(LOCAL_MAGELLAN_CONFIG_DIR_PATH, config_file_name)
@@ -66,7 +71,7 @@ def main():
         try:
             port_to_services = read_magellan_configs()
             if port_to_services is not None:
-                service_to_addresses = consul.get_service_to_addresses()
+                service_to_addresses = common.consul.get_service_to_addresses()
                 port_to_addresses = match_port_to_addresses(port_to_services, service_to_addresses)
                 haproxy.update_from_mapping(port_to_addresses)
         except Exception as e:

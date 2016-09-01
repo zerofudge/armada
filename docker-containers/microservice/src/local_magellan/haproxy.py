@@ -1,4 +1,5 @@
 import os
+import socket
 
 CONFIG_PATH = '/var/opt/haproxy-local.cfg'
 PID_PATH = '/var/run/haproxy-local.pid'
@@ -9,11 +10,19 @@ global
 
 defaults
     mode tcp
-    timeout connect 5s
+    timeout connect 7s
     timeout server 24d
     timeout client 24d
 
 '''
+
+
+def _is_ip(hostname):
+    try:
+        socket.inet_aton(hostname)
+        return True
+    except socket.error:
+        return False
 
 
 def get_current_config():
@@ -27,13 +36,27 @@ def generate_config_from_mapping(port_to_addresses):
     result = CONFIG_HEADER
     for port, addresses in port_to_addresses.items():
         result += '\tlisten service_{port}\n'.format(**locals())
-        result += '\t\tbind *:{port}\n'.format(**locals())
+        result += '\t\tbind :::{port} v4v6\n'.format(**locals())
+        result += '\t\thttp-request del-header Proxy\n'
         if not addresses:
             result += '\t\ttcp-request connection reject\n'
         else:
-            for i, address in enumerate(addresses):
-                result += '\t\tserver server_{i} {address} maxconn 128\n'.format(**locals())
+            result += _make_server_config(addresses)
         result += '\n'
+    return result
+
+
+def _make_server_config(addresses):
+    result = ""
+    for i, address in enumerate(addresses):
+        protocol, host = address.split("://", 2) if "://" in address else ("", address)
+
+        result += '\t\tserver server_{i} {host} maxconn 128\n'.format(**locals())
+        hostname = host.split(':')[0]
+
+        if not _is_ip(hostname) and protocol == "http":
+            result += '\t\thttp-request set-header Host {}\n'.format(host)
+            result += '\t\tmode {}\n'.format(protocol)
     return result
 
 

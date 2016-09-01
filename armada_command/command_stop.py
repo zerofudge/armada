@@ -1,12 +1,14 @@
 from __future__ import print_function
+
 import argparse
 import os
 import sys
 import traceback
 
 import armada_api
-from armada_command.armada_utils import ArmadaCommandException
 import armada_utils
+from armada_command.armada_utils import ArmadaCommandException
+from armada_command.consul import kv
 
 
 def parse_args():
@@ -47,16 +49,21 @@ def command_stop(args):
         try:
             if instances_count > 1:
                 print('[{0}/{1}]'.format(i + 1, instances_count))
-            container_id = instance['ServiceID'].split(':')[0]
-            payload = {'container_id': container_id}
-            result = armada_api.post('stop', payload, ship_name=instance['Node'])
-
-            if result['status'] == 'ok':
-                print('Service {container_id} has been stopped.'.format(**locals()))
-                if instances_count > 1:
-                    print()
+            if 'kv_index' in instance:
+                kv.kv_remove('service/{}/{}'.format(instance['ServiceName'], instance['kv_index']))
+                print('Service {} has been removed.'.format(instance['ServiceName']))
             else:
-                raise ArmadaCommandException('Stopping error: {0}'.format(result['error']))
+                container_id = instance['ServiceID'].split(':')[0]
+                payload = {'container_id': container_id}
+                ship_name = instance['Address']
+                result = armada_api.post('stop', payload, ship_name=ship_name)
+
+                if result['status'] == 'ok':
+                    print('Service {container_id} has been stopped.'.format(**locals()))
+                    if instances_count > 1:
+                        print()
+                else:
+                    raise ArmadaCommandException('Stopping error: {0}'.format(result['error']))
         except:
             traceback.print_exc()
             were_errors = True

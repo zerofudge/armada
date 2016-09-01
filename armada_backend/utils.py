@@ -1,11 +1,33 @@
 import base64
 import json
-import requests
-from armada_command.consul.consul import consul_query
-from armada_command.consul.consul import consul_get
-from armada_command.consul import kv
+import logging
 import traceback
+
+import requests
+
 from armada_backend import docker_client
+from armada_command.consul import kv
+from armada_command.consul.consul import consul_get
+from armada_command.consul.consul import consul_query
+
+
+def shorten_container_id(long_container_id):
+    return long_container_id[:12]
+
+
+def get_logger():
+    try:
+        return get_logger.logger
+    except AttributeError:
+        pass
+    logger = logging.getLogger('armada_backend')
+    logger.setLevel(logging.INFO)
+    stream_handler = logging.StreamHandler()
+    formatter = logging.Formatter('%(asctime)s %(name)s [%(levelname)s] - %(message)s')
+    stream_handler.setFormatter(formatter)
+    logger.addHandler(stream_handler)
+    get_logger.logger = logger
+    return logger
 
 
 def deregister_services(container_id):
@@ -14,17 +36,27 @@ def deregister_services(container_id):
         if service_id.startswith(container_id):
             consul_get('agent/service/deregister/{service_id}'.format(**locals()))
             try:
-                kv.remove("start_timestamp/" + container_id)
+                kv.kv_remove("start_timestamp/" + container_id)
             except Exception as e:
                 traceback.print_exc()
 
 
-def get_ship_name():
+def get_ship_ip():
     agent_self_dict = consul_query('agent/self')
-    ship_name = agent_self_dict['Config']['NodeName']
-    if ship_name.startswith('ship-'):
-        ship_name = ship_name[5:]
+    return agent_self_dict['Config']['AdvertiseAddr']
+
+
+def get_ship_name(ship_ip=None):
+    if ship_ip is None:
+        ship_ip = get_ship_ip()
+    ship_name = kv.kv_get('ships/{}/name'.format(ship_ip)) or ship_ip
     return ship_name
+
+
+def set_ship_name(name):
+    ship_ip = get_ship_ip()
+    kv.kv_set('ships/{}/name'.format(ship_ip), name)
+    kv.kv_set('ships/{}/ip'.format(name), ship_ip)
 
 
 def get_other_ship_ips():
@@ -32,10 +64,9 @@ def get_other_ship_ips():
         catalog_nodes_dict = consul_query('catalog/nodes')
         ship_ips = list(consul_node['Address'] for consul_node in catalog_nodes_dict)
 
-        agent_self_dict = consul_query('agent/self')
-        service_ip = agent_self_dict['Config']['AdvertiseAddr']
-        if service_ip in ship_ips:
-            ship_ips.remove(service_ip)
+        my_ship_ip = get_ship_ip()
+        if my_ship_ip in ship_ips:
+            ship_ips.remove(my_ship_ip)
         return ship_ips
     except:
         return []
@@ -68,16 +99,27 @@ def get_container_ssh_address(container_id):
 def get_container_parameters(container_id):
     url = 'http://localhost/env/{container_id}/RESTART_CONTAINER_PARAMETERS'.format(**locals())
     response = requests.get(url)
-    if response.status_code == requests.codes.ok:
-        output = response.json()
-        if output['status'] == 'ok':
-            container_parameters = json.loads(base64.b64decode(output['value']))
-            return container_parameters
+    response.raise_for_status()
+    output = response.json()
+    if output['status'] == 'ok':
+        container_parameters = json.loads(base64.b64decode(output['value']))
+        return container_parameters
+    return None
 
 
 def get_local_containers_ids():
     response = requests.get('http://localhost/list?local=1')
-    assert response.status_code == requests.codes.ok
+    response.raise_for_status()
     list_response = response.json()
     services_from_api = list_response['result']
-    return list(set(service['container_id'] for service in services_from_api))
+    return list(set(service['container_id'] for service in services_from_api if service['status'] not in ['recovering',
+                                                                                                          'crashed']))
+
+
+def is_container_running(container_id):
+    docker_api = docker_client.api()
+    try:
+        inspect = docker_api.inspect_container(container_id)
+        return inspect['State']['Running']
+    except:
+        return False

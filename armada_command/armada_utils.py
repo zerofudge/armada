@@ -1,8 +1,12 @@
 from __future__ import print_function
+
 import os
-import sys
 import subprocess
+import sys
+import socket
+
 from armada_command.consul.consul import consul_query
+from consul import kv
 
 
 class ArmadaCommandException(Exception):
@@ -24,8 +28,8 @@ def get_matched_containers(microservice_name_or_container_id_prefix):
     matched_containers_by_id = []
 
     for service_name in service_names:
+        query = 'catalog/service/{service_name}'.format(**locals())
         try:
-            query = 'catalog/service/{service_name}'.format(**locals())
             instances = consul_query(query)
         except Exception as e:
             print_err('WARNING: query "{query}" failed ({exception_class}: {exception})'.format(
@@ -41,6 +45,20 @@ def get_matched_containers(microservice_name_or_container_id_prefix):
 
             if container_id.startswith(microservice_name_or_container_id_prefix) and ":" not in instance['ServiceID']:
                 matched_containers_by_id.append(instance)
+
+    instances_kv = kv.kv_list('service/')
+
+    if instances_kv:
+        for instance in instances_kv:
+            instance_dict = kv.kv_get(instance)
+            container_id = instance_dict['container_id'] if 'container_id' in instance_dict else instance_dict['ServiceID']
+            service_name = instance_dict['ServiceName']
+
+            if microservice_name_or_container_id_prefix == service_name:
+                matched_containers_by_name.append(instance_dict)
+
+            if container_id.startswith(microservice_name_or_container_id_prefix) and ":" not in instance_dict['ServiceID']:
+                matched_containers_by_id.append(instance_dict)
 
     matched_containers_by_name_count = len(matched_containers_by_name)
     matched_containers_by_id_count = len(matched_containers_by_id)
@@ -66,6 +84,7 @@ def get_matched_containers(microservice_name_or_container_id_prefix):
 
 
 def execute_local_command(command, stream_output=False, retries=0):
+    code, out, err = None, None, None
     for i in range(retries + 1):
         if i > 0:
             print_err('Retrying... ({i} of {retries})'.format(**locals()))
@@ -86,3 +105,50 @@ def execute_local_command(command, stream_output=False, retries=0):
         else:
             print_err('Command failed: {command}'.format(**locals()))
     return code, out, err
+
+
+def is_verbose():
+    try:
+        return is_verbose.verbose
+    except AttributeError:
+        return False
+
+
+def set_verbose():
+    is_verbose.verbose = True
+
+
+def print_table(rows):
+    widths = [max(len(str(val)) for val in col) for col in zip(*rows)]
+    for row in rows:
+        print('  '.join((str(val).ljust(width) for val, width in zip(row, widths))))
+
+
+def ship_name_to_ip(name):
+    return kv.kv_get('ships/{}/ip'.format(name))
+
+
+def ship_ip_to_name(ip):
+    return kv.kv_get('ships/{}/name'.format(ip))
+
+
+def split_image_path(image_path):
+    dockyard_address = None
+    image_name = image_path
+    image_tag = 'latest'
+
+    if image_path:
+        if '/' in image_name:
+            dockyard_address, image_name = image_name.split('/', 1)
+        if ':' in image_name:
+            image_name, image_tag = image_name.split(':', 1)
+
+    return dockyard_address, image_name, image_tag
+
+
+def is_ip(name):
+    try:
+        socket.inet_aton(name)
+        return True
+    except socket.error:
+        return False

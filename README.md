@@ -27,3 +27,19 @@ your platform more service oriented.
 
 * [microservice_templates/](microservice_templates/) - Templates that can serve as a base for creating new
     Armada microservices. This repository is used by `armada create` command.
+
+# Running tests
+
+In the root directory of the repository run:
+
+    python -m tests.unit_tests
+
+# Workflow for Armada development:
+
+1. $ vagrant up
+2. $ vagrant ssh
+3. Make changes in armada source code on your hard drive in directory that contains this Vagrantfile.
+   It is in sync with /opt/armada-src in Vagrant.
+   Autoreload of [Armada API](armada_backend/armada_api.py) is by default enabled.
+4. Test changes.
+5. $ armada push armada -d [dockyard]
